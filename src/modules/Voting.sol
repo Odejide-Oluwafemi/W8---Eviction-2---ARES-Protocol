@@ -8,13 +8,10 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Module for handling voting logic
 abstract contract Voting is EIP712 {
-    
-    // State variables for voting
     mapping(uint256 => IAresProtocol.Proposal) public proposals;
     mapping(uint256 => mapping(address => bool)) public voterHasVoted;
     uint256 public proposalCount;
     
-    // Settings
     uint256 public votingPeriod = 3 days;
     uint256 public minTokensToPropose = 100;
     address public governanceToken;
@@ -23,7 +20,6 @@ abstract contract Voting is EIP712 {
 
     constructor(string memory name, string memory version) EIP712(name, version) {}
 
-    // Simple reentrancy guard
     bool internal locked;
     modifier noReentrant() {
         require(!locked, "No reentrancy");
@@ -32,7 +28,6 @@ abstract contract Voting is EIP712 {
         locked = false;
     }
 
-    // Create a new proposal
     function _createProposal(
         address proposer,
         address target,
@@ -40,7 +35,6 @@ abstract contract Voting is EIP712 {
         bytes calldata data,
         string calldata desc
     ) internal returns (uint256) {
-        // Check if user has enough tokens (Basic anti-spam)
         require(_balanceOf(proposer) >= minTokensToPropose, "Not enough tokens");
         
         proposalCount = proposalCount + 1;
@@ -66,7 +60,6 @@ abstract contract Voting is EIP712 {
         return id;
     }
 
-    // Cast a vote
     function _vote(uint256 proposalId, address voter, bool support) internal {
         IAresProtocol.Proposal storage p = proposals[proposalId];
         
@@ -74,7 +67,6 @@ abstract contract Voting is EIP712 {
         require(!p.executed, "Already executed");
         require(!voterHasVoted[proposalId][voter], "Already voted");
         
-        // Use historical snapshot voting power to prevent flash loans
         uint256 votes = _getPastVotes(voter, p.endTime - votingPeriod);
         require(votes > 0, "No tokens");
         
@@ -87,7 +79,6 @@ abstract contract Voting is EIP712 {
         }
     }
 
-    // Vote via EIP-712 signature
     function _voteBySig(
         uint256 proposalId,
         bool support,
@@ -102,9 +93,7 @@ abstract contract Voting is EIP712 {
         _vote(proposalId, signer, support);
     }
 
-    // Helper to get past voting power
     function _getPastVotes(address account, uint256 blockTimestamp) internal view returns (uint256) {
-        // Since we are using ERC20Votes, it has getPastVotes(account, timepoint)
         (bool success, bytes memory result) = governanceToken.staticcall(
             abi.encodeWithSignature("getPastVotes(address,uint256)", account, blockTimestamp)
         );
@@ -114,7 +103,6 @@ abstract contract Voting is EIP712 {
         return 0;
     }
 
-    // Helper to get current token balance
     function _balanceOf(address account) internal view returns (uint256) {
         (bool success, bytes memory result) = governanceToken.staticcall(
             abi.encodeWithSignature("balanceOf(address)", account)

@@ -16,7 +16,6 @@ abstract contract RewardDistributor {
         bytes32 root,
         uint256 amount
     ) internal returns (uint256) {
-        require(msg.sender == admin, "Not admin");
         require(root != bytes32(0), "Zero root");
         
         rewardRoundCount = rewardRoundCount + 1;
@@ -37,7 +36,7 @@ abstract contract RewardDistributor {
         uint256 roundId,
         address user,
         uint256 amount,
-        bytes32[] calldata proof
+        bytes32[] memory proof
     ) internal {
         require(rewardRounds[roundId].active, "Round not active");
         require(!hasClaimed[roundId][user], "Already claimed");
