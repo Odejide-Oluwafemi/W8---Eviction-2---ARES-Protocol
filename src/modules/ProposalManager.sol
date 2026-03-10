@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-contract ProposalManager {
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {TimeLock} from "src/modules/TimeLock.sol";
+
+contract ProposalManager is ReentrancyGuard {
     // Errors
-    error ProposalManager__CannotExecuteTransaction();
     error ProposalManager__DuplicateProposal();
     error ProposalManager__InvalidSigner();
     error ProposalManager__CannotCommitOwnProposal();
-    error ProposalManager__OnlyProposerCanExecute();
-    error ProposalManager__StillInTimeLock();
-    error ProposalManager__ProposalAlreadyExecuted();
     error ProposalManager__AlreadyApproved();
     error ProposalManager__AlreadyCancelled();
 
@@ -22,6 +21,7 @@ contract ProposalManager {
 
     address[] public signers;
     uint8 public quoremCount;
+    TimeLock immutable timeLock;
 
     struct Proposal {
         address proposer;
@@ -29,8 +29,6 @@ contract ProposalManager {
         uint256 value;
         bytes data;
         uint256 nonce;
-        uint256 timestamp;  // start time for timelock
-        bool executed;
         bool cancelled;
         ProposalStatus status;
         uint8 approvalCount;
@@ -49,17 +47,15 @@ contract ProposalManager {
     mapping(address signer => bool valid) private isValidSigner;
     mapping(bytes32 proposalId => mapping (address signer => bool cancel)) private proposalCancelledBy;
     mapping(bytes32 proposalId => mapping (address signer => bool cancel)) private proposalApprovedBy;
-    uint256 private timeLockPeriod;
 
-    constructor(address[] memory _signers, uint8 _quoremCount, uint256 _timeLockPeriod) {
+    constructor(address[] memory _signers, uint8 _quoremCount, address _timelock) {
         quoremCount = _quoremCount;
+        timeLock = TimeLock(_timelock);
 
         for (uint256 i; i < _signers.length; i++) {
             signers[i] = _signers[i];
             isValidSigner[_signers[i]] = true;
         }
-
-        timeLockPeriod = _timeLockPeriod;
     }
 
     // Modifiers
@@ -86,8 +82,6 @@ contract ProposalManager {
             value: value,
             data: data,
             nonce: nonce,
-            timestamp: block.timestamp,
-            executed: false,
             cancelled: false,
             status: ProposalStatus.Draft,
             approvalCount: 0
@@ -102,35 +96,17 @@ contract ProposalManager {
 
         proposalApprovedBy[id][msg.sender] = true;
         proposalCancelledBy[id][msg.sender] = false;
-        
+
         proposal.approvalCount = proposal.approvalCount + 1;
 
         if (proposal.approvalCount >= quoremCount) {
           proposal.status = ProposalStatus.Queued;
-          proposal.timestamp = block.timestamp;
+          timeLock.queueProposal(id, proposal.target, proposal.value, proposal.data);
         }
-    }
-
-    function execute(bytes32 id) external returns (bool, bytes memory) {
-        Proposal memory proposal = proposals[id];
-        if (proposal.status != ProposalStatus.ReadyForExecution) revert ProposalManager__CannotExecuteTransaction();
-
-        if (proposalCancelledBy[id][msg.sender]) revert ProposalManager__AlreadyCancelled();
-        if (msg.sender != proposal.proposer) revert ProposalManager__OnlyProposerCanExecute();
-        if (block.timestamp < proposal.timestamp + timeLockPeriod) revert ProposalManager__StillInTimeLock();
-        if (proposal.executed) revert ProposalManager__ProposalAlreadyExecuted();
-        
-        proposal.executed = true;
-
-        (bool success, bytes memory data) = proposal.target.call{value: proposal.value}(proposal.data);
-        
-        return (success, data);
     }
 
     function cancelProposal(bytes32 id) external onlyValidSigner {
       Proposal memory proposal = proposals[id];
-
-      if (proposal.executed) revert ProposalManager__ProposalAlreadyExecuted();
       if (proposalCancelledBy[id][msg.sender]) revert ProposalManager__AlreadyCancelled();
 
       proposalCancelledBy[id][msg.sender] = true;
