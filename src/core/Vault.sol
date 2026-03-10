@@ -20,9 +20,7 @@ contract Vault is ReentrancyGuard {
     balances[msg.sender] += amount;
   }
 
-  function withdrawTo(address from, address to, uint amount) external {
-    balances[from] -= amount;
-    balances[to] += amount;
+  function withdraw(address to, uint amount) external {
     bool success = token.transfer(to, amount);
     require(success);
   }
