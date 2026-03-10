@@ -96,6 +96,10 @@ contract AresProtocol is IAresProtocol, Voting, RewardDistributor {
     
     receive() external payable {}
 
+    function domainSeparator() public view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
     function getProposal(
         uint256 id
     ) external view override returns (Proposal memory) {
