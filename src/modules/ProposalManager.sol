@@ -7,6 +7,11 @@ contract ProposalManager {
     error ProposalManager__DuplicateProposal();
     error ProposalManager__InvalidSigner();
     error ProposalManager__CannotCommitOwnProposal();
+    error ProposalManager__OnlyProposerCanExecute();
+    error ProposalManager__StillInTimeLock();
+    error ProposalManager__ProposalAlreadyExecuted();
+    error ProposalManager__AlreadyApproved();
+    error ProposalManager__AlreadyCancelled();
 
     // Events
     event ProposalCreated(bytes32 id, address proposer);
@@ -24,10 +29,11 @@ contract ProposalManager {
         uint256 value;
         bytes data;
         uint256 nonce;
-        uint256 timestamp;
-        bool approved;
+        uint256 timestamp;  // start time for timelock
+        bool executed;
         bool cancelled;
         ProposalStatus status;
+        uint8 approvalCount;
     }
 
     enum ProposalStatus {
@@ -41,14 +47,19 @@ contract ProposalManager {
     mapping(bytes32 => Proposal) public proposals;
     mapping(address => uint256) public nonces;
     mapping(address signer => bool valid) private isValidSigner;
+    mapping(bytes32 proposalId => mapping (address signer => bool cancel)) private proposalCancelledBy;
+    mapping(bytes32 proposalId => mapping (address signer => bool cancel)) private proposalApprovedBy;
+    uint256 private timeLockPeriod;
 
-    constructor(address[] memory _signers, uint8 _quoremCount) {
+    constructor(address[] memory _signers, uint8 _quoremCount, uint256 _timeLockPeriod) {
         quoremCount = _quoremCount;
 
         for (uint256 i; i < _signers.length; i++) {
             signers[i] = _signers[i];
             isValidSigner[_signers[i]] = true;
         }
+
+        timeLockPeriod = _timeLockPeriod;
     }
 
     // Modifiers
@@ -76,23 +87,56 @@ contract ProposalManager {
             data: data,
             nonce: nonce,
             timestamp: block.timestamp,
-            approved: false,
+            executed: false,
             cancelled: false,
-            status: ProposalStatus.Draft
+            status: ProposalStatus.Draft,
+            approvalCount: 0
         });
     }
 
-    function commitProposal(bytes32 id) external onlyValidSigner {
+    function approveProposal(bytes32 id) external onlyValidSigner {
         Proposal storage proposal = proposals[id];
+
         if (msg.sender == proposal.proposer) revert ProposalManager__CannotCommitOwnProposal();
-        proposal.status = ProposalStatus.Queued;
+        if (proposalApprovedBy[id][msg.sender]) revert ProposalManager__AlreadyApproved();
+
+        proposalApprovedBy[id][msg.sender] = true;
+        proposalCancelledBy[id][msg.sender] = false;
+        
+        proposal.approvalCount = proposal.approvalCount + 1;
+
+        if (proposal.approvalCount >= quoremCount) {
+          proposal.status = ProposalStatus.Queued;
+          proposal.timestamp = block.timestamp;
+        }
     }
 
-    function execute(Proposal memory proposal) external returns (bool, bytes memory) {
-        if (proposal.status == ProposalStatus.ReadyForExecution) revert ProposalManager__CannotExecuteTransaction();
-        (bool success, bytes memory data) = proposal.target.call{value: proposal.value}(proposal.data);
+    function execute(bytes32 id) external returns (bool, bytes memory) {
+        Proposal memory proposal = proposals[id];
+        if (proposal.status != ProposalStatus.ReadyForExecution) revert ProposalManager__CannotExecuteTransaction();
 
+        if (proposalCancelledBy[id][msg.sender]) revert ProposalManager__AlreadyCancelled();
+        if (msg.sender != proposal.proposer) revert ProposalManager__OnlyProposerCanExecute();
+        if (block.timestamp < proposal.timestamp + timeLockPeriod) revert ProposalManager__StillInTimeLock();
+        if (proposal.executed) revert ProposalManager__ProposalAlreadyExecuted();
+        
+        proposal.executed = true;
+
+        (bool success, bytes memory data) = proposal.target.call{value: proposal.value}(proposal.data);
+        
         return (success, data);
+    }
+
+    function cancelProposal(bytes32 id) external onlyValidSigner {
+      Proposal memory proposal = proposals[id];
+
+      if (proposal.executed) revert ProposalManager__ProposalAlreadyExecuted();
+      if (proposalCancelledBy[id][msg.sender]) revert ProposalManager__AlreadyCancelled();
+
+      proposalCancelledBy[id][msg.sender] = true;
+      proposalApprovedBy[id][msg.sender] = false;
+
+      proposal.approvalCount = proposal.approvalCount - 1;
     }
 
     function getProposalById(bytes32 id) external view returns (Proposal memory) {
