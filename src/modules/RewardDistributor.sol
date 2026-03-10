@@ -1,62 +1,63 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
-contract RewardDistributor {
-  // Errors
-  error RewardDistributor__YouCannotCallThis();
-  error RewardDistributor__AlreadyClaimed();
-  error RewardDistributor__InvalidProof();
-  error RewardDistributor__Unauthorized();
-  
-  // Events
-    event MerkleRootUpdated(bytes32 newRoot);
-    event RewardClaimed(address indexed account, uint256 amount);
+import "../interfaces/IAresProtocol.sol";
+import "../libraries/HelperFunctions.sol";
 
-      mapping(bytes32 => bool) public hasClaimed;
+abstract contract RewardDistributor {
+    mapping(uint256 => IAresProtocol.RewardRound) public rewardRounds;
+    mapping(uint256 => mapping(address => bool)) public hasClaimed;
+    uint256 public rewardRoundCount;
+    
+    address public treasury;
+    address public admin;
 
-  bytes32 public merkleRoot;
-  address public admin;
-
-   constructor(bytes32 _merkleRoot) {
-        merkleRoot = _merkleRoot;
-        admin = msg.sender;
+    function _setRewardRoot(
+        bytes32 root,
+        uint256 amount
+    ) internal returns (uint256) {
+        require(msg.sender == admin, "Not admin");
+        require(root != bytes32(0), "Zero root");
+        
+        rewardRoundCount = rewardRoundCount + 1;
+        uint256 id = rewardRoundCount;
+        
+        rewardRounds[id] = IAresProtocol.RewardRound({
+            id: id,
+            merkleRoot: root,
+            totalAmount: amount,
+            claimedAmount: 0,
+            active: true
+        });
+        
+        return id;
     }
 
-        function updateMerkleRoot(bytes32 _newRoot) external {
-        if (msg.sender != admin) revert RewardDistributor__YouCannotCallThis();
-        merkleRoot = _newRoot;
-        emit MerkleRootUpdated(_newRoot);
+    function _claimReward(
+        uint256 roundId,
+        address user,
+        uint256 amount,
+        bytes32[] calldata proof
+    ) internal {
+        require(rewardRounds[roundId].active, "Round not active");
+        require(!hasClaimed[roundId][user], "Already claimed");
+        
+        bytes32 leaf = keccak256(abi.encodePacked(user, amount));
+        require(
+            HelperFunctions.verifyMerkleProof(proof, rewardRounds[roundId].merkleRoot, leaf),
+            "Invalid proof"
+        );
+        
+        uint256 remaining = rewardRounds[roundId].totalAmount - rewardRounds[roundId].claimedAmount;
+        require(amount <= remaining, "Not enough funds");
+        
+        hasClaimed[roundId][user] = true;
+        rewardRounds[roundId].claimedAmount = rewardRounds[roundId].claimedAmount + amount;
+        
+
+        (bool success, ) = treasury.call(
+            abi.encodeWithSignature("transfer(address,uint256)", user, amount)
+        );
+        require(success, "Transfer failed");
     }
-
-     function claim(uint256 amount, bytes32[] calldata proof) external {
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
-
-        if (hasClaimed[leaf]) revert RewardDistributor__AlreadyClaimed();
-
-        if (!_verify(proof, leaf)) revert RewardDistributor__InvalidProof();
-
-        hasClaimed[leaf] = true;
-
-        (bool success, ) = msg.sender.call{value: amount}("");
-        if (!success) revert RewardDistributor__Unauthorized();
-
-        emit RewardClaimed(msg.sender, amount);
-    }
-
-    function _verify(bytes32[] memory proof, bytes32 leaf) internal view returns (bool) {
-        bytes32 computedHash = leaf;
-
-        for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 proofElement = proof[i];
-
-            if (computedHash <= proofElement) {
-                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
-            } else {
-                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
-            }
-        }
-
-        return computedHash == merkleRoot;
-    }
-
 }
