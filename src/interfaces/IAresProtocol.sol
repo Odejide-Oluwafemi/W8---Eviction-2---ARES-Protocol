@@ -32,6 +32,7 @@ interface IAresProtocol {
     function voteBySig(uint256 proposalId, bool support, uint8 v, bytes32 r, bytes32 s) external;
     function queueProposal(uint256 proposalId) external;
     function executeProposal(uint256 proposalId) external;
+    function cancelProposal(uint256 proposalId) external;
     function setRewardRoot(bytes32 root, uint256 amount) external;
     function claimReward(uint256 roundId, address user, uint256 amount, bytes32[] calldata proof) external;
     

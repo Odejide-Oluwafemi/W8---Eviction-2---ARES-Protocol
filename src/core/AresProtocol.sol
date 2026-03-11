@@ -71,6 +71,15 @@ contract AresProtocol is IAresProtocol, Voting, RewardDistributor {
         require(success, "Execution failed");
     }
 
+    function cancelProposal(uint256 proposalId) external override {
+        IAresProtocol.Proposal storage p = proposals[proposalId];
+        require(msg.sender == p.proposer, "Not proposer");
+        require(!p.executed, "Already executed");
+        require(!p.canceled, "Already canceled");
+
+        p.canceled = true;
+    }
+
     function setRewardRoot(bytes32 root, uint256 amount) external override {
         _setRewardRoot(root, amount);
     }
