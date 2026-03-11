@@ -5,6 +5,7 @@ import "../interfaces/IAresProtocol.sol";
 import "../libraries/HelperFunctions.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 // Module for handling voting logic
 abstract contract Voting is EIP712 {
@@ -94,13 +95,7 @@ abstract contract Voting is EIP712 {
     }
 
     function _getPastVotes(address account, uint256 blockTimestamp) internal view returns (uint256) {
-        (bool success, bytes memory result) = governanceToken.staticcall(
-            abi.encodeWithSignature("getPastVotes(address,uint256)", account, blockTimestamp)
-        );
-        if (success) {
-            return abi.decode(result, (uint256));
-        }
-        return 0;
+        return IVotes(governanceToken).getPastVotes(account, blockTimestamp);
     }
 
     function _balanceOf(address account) internal view returns (uint256) {
