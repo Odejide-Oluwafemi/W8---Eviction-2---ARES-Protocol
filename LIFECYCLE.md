@@ -29,4 +29,7 @@ Any user can call `queueProposal`, after which the proposal is assigned an `eta`
 After the timelock expires, the proposal can be executed. Execution must occur between `eta` and `eta + gracePeriod`.
 Upom Calling `executeProposal`, the protocol verifies that the provided `data` matches the `dataHash` recorded during creation. Only then is the proposal executed, and the proposal state is marked as `executed = true`, and it cannot be run again (preventing a re-execution of an executed proposal).
 
-## 5. C
+## 5. Cancellation
+A proposal can be cancelled before execution (for instance if the proposer changes his/her mind).
+Only the original `proposer` can cancel their proposal, and the proposal can be canceled at any point in time before it has been executed (even during the timelock period).
+Calling `cancelProposal` sets `canceled = true`, which permanently prevents the proposal from being queued or executed.
