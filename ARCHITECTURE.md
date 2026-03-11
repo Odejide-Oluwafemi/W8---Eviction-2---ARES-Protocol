@@ -48,7 +48,7 @@ For security, the following were implemented:
 
 - **Merkle Proofs**: Reward claims are verified against a root stored by the admin, ensuring users can only claim the exact amount allocated to them.
 
-## 4. Trust Assumptions
+## 5. Trust Assumptions
 
 The Trust Assumptions required for this contract to function as expected are:
 
@@ -58,4 +58,4 @@ The Trust Assumptions required for this contract to function as expected are:
 
 - **Treasury Liquidity**: The protocol assumes the `treasury` contract (or address) has sufficient balance to satisfy `transfer` calls for both reward claims and proposal executions (although there is a `maxTreasuryWithdraw` to ensure no proposal can be created to withdraw more than this amount)
 
-- **Oracle/Data Feed (Off-chain)**: The Merkle Root that is passed in, is generated offchain and it is assumed to have been done correctly and the off-chain system generating it is also assumed to be accurate and secure.
+- **Off-Chain Merkle Root Generation**: The Merkle Root that is passed in, is generated offchain and it is assumed to have been done correctly and the off-chain system generating it is also assumed to be accurate and secure.
