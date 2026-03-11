@@ -24,3 +24,9 @@ Once a proposal has been created, users can start voting on it.
 ## 3. The TimeLock Mechanism
 Approved proposals must be moved to the timelock queue before they can be executed. It is required that Voting must have ended on that particular proposal, and the proposal must have passed the vote count check (`forVote`).
 Any user can call `queueProposal`, after which the proposal is assigned an `eta` countdown time (which is `block.timestamp + timelock`). This makes room for voters to "rethink" their decisions.
+
+## 4. Proposal Execution
+After the timelock expires, the proposal can be executed. Execution must occur between `eta` and `eta + gracePeriod`.
+Upom Calling `executeProposal`, the protocol verifies that the provided `data` matches the `dataHash` recorded during creation. Only then is the proposal executed, and the proposal state is marked as `executed = true`, and it cannot be run again (preventing a re-execution of an executed proposal).
+
+## 5. C
