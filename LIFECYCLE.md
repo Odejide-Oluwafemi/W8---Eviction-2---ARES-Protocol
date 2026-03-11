@@ -13,3 +13,10 @@ Proposal Lifecycle from creation to Execution or Cancellation.
     - Captures the keccak-256 `dataHash` of the execution payload calldata.
     - Sets the `endTime` (current time + `votingPeriod`).
 
+## 2. Approval (Voting)
+Once a proposal has been created, users can start voting on it.
+- **Voting Timeframe**: Users can cast votes (For/Against) until the `endTime` is reached.
+
+- **Snapshot Power**: Voting power is determined by the user's token balance at the *start* of the voting period (using Openeppelin's `getPastVotes`).
+
+- **Approva;**: A proposal is considered "Approved" if, at the `endTime`, `forVotes > againstVotes`, and vice versa.
