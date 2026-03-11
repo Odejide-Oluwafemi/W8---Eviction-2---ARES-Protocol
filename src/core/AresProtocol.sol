@@ -8,7 +8,7 @@ import "../modules/RewardDistributor.sol";
 contract AresProtocol is IAresProtocol, Voting, RewardDistributor {
     
     uint256 public timelock = 2 days;
-    uint256 public gracePeriod = 7 days; // Added for stale proposal test
+    uint256 public gracePeriod = 7 days;
     uint256 public maxTreasuryWithdraw = 1000000 * 10 ** 18;
 
     constructor(address _token, address _treasury, address _admin) 

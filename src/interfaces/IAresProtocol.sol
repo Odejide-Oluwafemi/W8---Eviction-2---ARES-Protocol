@@ -8,7 +8,7 @@ interface IAresProtocol {
         address target;
         uint256 amount;
         bytes data;
-        bytes32 dataHash; // Added for calldata tamper test
+        bytes32 dataHash;
         string description;
         uint256 endTime;
         uint256 forVotes;
