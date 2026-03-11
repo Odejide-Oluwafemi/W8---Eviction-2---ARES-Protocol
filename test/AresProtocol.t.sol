@@ -72,5 +72,24 @@ contract AresProtocolTest is Test {
         assertTrue(protocol.getProposal(id).executed);
     }
 
+        function test_SignatureVerification() public {
+        uint256 id = 1;
+        vm.prank(user);
+        protocol.createProposal(address(0), 0, "", "desc");
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("Vote(uint256 proposalId,bool support)"),
+            id,
+            true
+        ));
+        bytes32 domainSep = protocol.domainSeparator();
+        bytes32 hash = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivKey, hash);
+
+        protocol.voteBySig(id, true, v, r, s);
+        assertTrue(protocol.hasVoted(id, vm.addr(userPrivKey)));
+    }
+
+
 
 }
