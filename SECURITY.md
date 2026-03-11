@@ -30,8 +30,9 @@ If the Merkle root is set incorrectly or if a proof can be spoofed, an attacker 
 
 - **Admin Centralization**: The COntract `admin` has exclusive power to set reward merkle root and update key system addresses (`admin`, `treasury`). A compromised admin key is a critical risk.
 
-- **Token-Moving grefing**: Since `createProposal` checks the *current* `balanceOf` rather than a historical snapshot, a user can create a proposal and immediately transfer tokens to another address to create another proposal (Sybil attack).
+- **Token-Moving Griefing**: Since `createProposal` checks the *current* `balanceOf` rather than a historical snapshot, a user can create a proposal and immediately transfer tokens to another address to create another proposal (Sybil attack).
 
 - **External Token Reliance**: The protocol's security is tied to the correctness of the `governanceToken` implementation (e.g., proper checkpointing for voting power).
+
 - **Treasury Exhaustion**: While individual proposals have a `maxTreasuryWithdraw` limit, multiple malicious proposals could theoretically pass and drain the treasury over time.
 
