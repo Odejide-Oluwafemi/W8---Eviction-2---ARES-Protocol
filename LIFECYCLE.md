@@ -17,6 +17,10 @@ Proposal Lifecycle from creation to Execution or Cancellation.
 Once a proposal has been created, users can start voting on it.
 - **Voting Timeframe**: Users can cast votes (For/Against) until the `endTime` is reached.
 
-- **Snapshot Power**: Voting power is determined by the user's token balance at the *start* of the voting period (using Openeppelin's `getPastVotes`).
+- **Snapshot Voting Power**: In Decentralized governance, Voting power is determined by the user's token balance (implemented at the *start* of the voting period using Openeppelin's `getPastVotes` IVotes interface).
 
-- **Approva;**: A proposal is considered "Approved" if, at the `endTime`, `forVotes > againstVotes`, and vice versa.
+- **Approval**: A proposal is considered "Approved" if, at the `endTime`, `forVotes > againstVotes`, and vice versa.
+
+## 3. The TimeLock Mechanism
+Approved proposals must be moved to the timelock queue before they can be executed. It is required that Voting must have ended on that particular proposal, and the proposal must have passed the vote count check (`forVote`).
+Any user can call `queueProposal`, after which the proposal is assigned an `eta` countdown time (which is `block.timestamp + timelock`). This makes room for voters to "rethink" their decisions.
